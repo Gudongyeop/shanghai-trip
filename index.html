@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#0f7a5c">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>상하이 먹킷리스트</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800&family=Song+Myung&display=swap">
 <style>
@@ -46,7 +48,10 @@ header p{margin:.35rem 0 0;color:var(--muted);font-size:14px}
 #q{flex:1;min-width:0;font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .toggle{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
 .map{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.map svg{display:block;width:100%;height:auto;touch-action:manipulation}
+#lmap{height:min(52vh,460px);width:100%;background:var(--bg)}
+.leaflet-popup-content{font-family:var(--f-body);font-size:13px;margin:10px 12px}
+.leaflet-popup-content b{font-size:14px}
+.pop-go{display:inline-block;margin-top:4px;color:#0f7a5c;font-weight:700;cursor:pointer;text-decoration:underline}
 .map figcaption{font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line)}
 .pin{cursor:pointer}
 .pin circle{stroke:var(--surface);stroke-width:2}
@@ -96,8 +101,8 @@ header p{margin:.35rem 0 0;color:var(--muted);font-size:14px}
   </div>
 
   <figure class="map" style="margin-inline:0;margin-bottom:0">
-    <svg id="map" viewBox="0 0 600 440" role="img" aria-label="상하이 시내 위치 개략도"></svg>
-    <figcaption>위치 개략도 (실제 지도 아님). 점을 누르면 해당 카드로 이동해요. 홍차오공항은 지도 밖(서쪽 15km)이에요.</figcaption>
+    <div id="lmap" role="region" aria-label="상하이 지도"></div>
+    <figcaption>고덕 지도. 점을 누르면 이름이 뜨고, 이름을 누르면 아래 카드로 이동해요. 점선 테두리 점은 위치가 대략적인 곳이에요. <button class="btn sm" id="fitAll">전체 보기</button></figcaption>
   </figure>
 
   <div class="list" id="list"></div>
@@ -169,30 +174,28 @@ const chipDefs=[["all","전체",null],...Object.entries(CAT).map(([k,v])=>[k,v.k
 $("#chips").innerHTML=chipDefs.map(([k,l,c])=>`<button class="chip" data-k="${k}" aria-pressed="${k===cat}">${c?`<span class="dot" style="background:var(${c})"></span>`:""}${l} <span style="opacity:.6">${k==="all"?P.length:P.filter(p=>p.cat===k).length}</span></button>`).join("");
 $("#chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;cat=b.dataset.k;try{localStorage.setItem("sh-cat",cat)}catch(e){}document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x.dataset.k===cat));render()});
 
-// map projection (city center only)
-const B={w:121.430,e:121.510,s:31.200,n:31.245}, W=600,H=440;
-const X=lng=>(lng-B.w)/(B.e-B.w)*W, Y=lat=>(B.n-lat)/(B.n-B.s)*H;
-const river=[[121.4885,31.2470],[121.4920,31.2410],[121.4935,31.2340],[121.4960,31.2270],[121.5010,31.2205],[121.5030,31.2120],[121.4990,31.2020]];
-const areas=[["인민광장",121.4735,31.2385],["와이탄",121.4855,31.2275],["루자쭈이",121.5000,31.2440],["신천지",121.4705,31.2155],["우캉루·안푸루",121.4430,31.2165],["징안",121.4520,31.2300]];
-function drawMap(){
-  const pts=P.filter(p=>p.lng>B.w&&p.lng<B.e&&p.lat>B.s&&p.lat<B.n);
-  $("#map").innerHTML=
-    `<rect width="${W}" height="${H}" fill="var(--surface)"/>`+
-    `<polyline points="${river.map(([a,b])=>X(a)+","+Y(b)).join(" ")}" fill="none" stroke="var(--river)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>`+
-    `<text x="${X(121.5005)}" y="${Y(31.2290)}" class="area" transform="rotate(62 ${X(121.5005)} ${Y(31.2290)})">황푸강</text>`+
-    areas.map(([t,a,b])=>`<text x="${X(a)}" y="${Y(b)}" class="area" text-anchor="middle">${t}</text>`).join("")+
-    pts.map(p=>`<g class="pin" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.ko}"><circle cx="${X(p.lng).toFixed(1)}" cy="${Y(p.lat).toFixed(1)}" r="7" fill="var(${CAT[p.cat].c})"/></g>`).join("");
-}
-drawMap();
-$("#map").addEventListener("click",e=>{const g=e.target.closest(".pin");if(g)focusCard(+g.dataset.id)});
-$("#map").addEventListener("keydown",e=>{const g=e.target.closest(".pin");if(g&&(e.key==="Enter"||e.key===" ")){e.preventDefault();focusCard(+g.dataset.id)}});
+// real map: Gaode (AMap) raster tiles — coordinates above are GCJ-02, same as Gaode, so they line up
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const map=L.map("lmap",{zoomControl:true,attributionControl:true}).setView([31.226,121.473],13);
+L.tileLayer("https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",{subdomains:"1234",maxZoom:18,attribution:"© 高德地图"}).addTo(map);
+const MK={};
+P.forEach(p=>{
+  const m=L.circleMarker([p.lat,p.lng],{radius:8,color:"#fff",weight:2,fillColor:css(CAT[p.cat].c),fillOpacity:.95,dashArray:p.code?null:"3 3"}).addTo(map);
+  m.bindPopup(`<b>${p.ko}</b><br><span lang="zh">${p.zh}</span><br>${p.memo}<br><a class="pop-go" data-id="${p.id}">카드 보기</a> · <a href="${link(p)}" target="_blank" rel="noopener">고덕에서 열기 ↗</a>`);
+  MK[p.id]=m;
+});
+const cityPts=P.filter(p=>p.lng>121.42).map(p=>[p.lat,p.lng]);
+const fitAll=()=>map.fitBounds(cityPts,{padding:[18,18]});
+fitAll(); $("#fitAll").addEventListener("click",fitAll);
+document.addEventListener("click",e=>{const a=e.target.closest(".pop-go");if(a){e.preventDefault();focusCard(+a.dataset.id,true)}});
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>P.forEach(p=>MK[p.id].setStyle({fillColor:css(CAT[p.cat].c)})));
 
-function focusCard(id){
+function focusCard(id,fromMap){
   const p=P[id]; if(cat!=="all"&&cat!==p.cat){cat="all";document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x.dataset.k==="all"))}
   $("#q").value=""; $("#hideDone").checked=false; render();
   const el=document.getElementById("c"+id); if(!el)return;
   document.querySelectorAll(".card.hl").forEach(c=>c.classList.remove("hl")); el.classList.add("hl");
-  document.querySelectorAll(".pin").forEach(g=>g.classList.toggle("on",+g.dataset.id===id));
+  Object.entries(MK).forEach(([k,m])=>m.setStyle({color:+k===id?css("--ink"):"#fff",weight:+k===id?3:2}));
   el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
 }
 
@@ -211,7 +214,7 @@ function render(){
     </div>
   </article>`).join(""):`<p class="empty">조건에 맞는 곳이 없어요. 검색어를 지우거나 다른 분류를 눌러보세요.</p>`;
   const ids=new Set(vis.map(p=>p.id));
-  document.querySelectorAll(".pin").forEach(g=>g.classList.toggle("dim",!ids.has(+g.dataset.id)));
+  Object.entries(MK).forEach(([k,m])=>{const on=ids.has(+k);m.setStyle({fillOpacity:on?.95:.12,opacity:on?1:.15})});
   const n=Object.values(done).filter(Boolean).length;
   $("#stats").innerHTML=`<span>저장 <b>${P.length}</b>곳</span>`+Object.entries(CAT).map(([k,v])=>`<span>${v.ko} <b>${P.filter(p=>p.cat===k).length}</b></span>`).join("")+`<span>가본 곳 <b>${n}</b></span>`;
 }
