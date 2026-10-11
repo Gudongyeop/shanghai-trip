@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f7a5c">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>상하이 먹킷리스트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800&family=Song+Myung&display=swap">
+<style>
+/* Layout: sticky filter bar + schematic district map + single-column place cards (2 cols on wide screens) */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#18201d; --muted:#5f6b66; --line:#dbe2df;
+  --accent:#0f7a5c; --accent-soft:#e1f1eb;
+  --c-sight:#2f62c9; --c-shop:#8a4fc4; --c-food:#d2452b; --c-cafe:#b07a12;
+  --river:#cfe2f3; --warn:#b4541a;
+  --f-display:"Song Myung","Noto Serif KR",serif;
+  --f-body:"Gothic A1","Apple SD Gothic Neo","PingFang SC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111614; --surface:#1a211e; --ink:#e7eeea; --muted:#9aa8a1; --line:#2c3632;
+  --accent:#4cc79d; --accent-soft:#16332a;
+  --c-sight:#7aa2f0; --c-shop:#b58ae6; --c-food:#f07a62; --c-cafe:#e0b04d;
+  --river:#1d3346; --warn:#f0965a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#1a211e; --ink:#e7eeea; --muted:#9aa8a1; --line:#2c3632;
+  --accent:#4cc79d; --accent-soft:#16332a;
+  --c-sight:#7aa2f0; --c-shop:#b58ae6; --c-food:#f07a62; --c-cafe:#e0b04d;
+  --river:#1d3346; --warn:#f0965a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+header h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,7vw,40px);margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:.35rem 0 0;color:var(--muted);font-size:14px}
+.stats{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 10px;margin-top:14px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:center}
+#q{flex:1;min-width:0;font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.toggle{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.map{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.map svg{display:block;width:100%;height:auto;touch-action:manipulation}
+.map figcaption{font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line)}
+.pin{cursor:pointer}
+.pin circle{stroke:var(--surface);stroke-width:2}
+.pin.on circle{stroke:var(--ink);stroke-width:3}
+.pin.dim{opacity:.15}
+.area{font-size:11px;fill:var(--muted);font-family:var(--f-body);letter-spacing:.04em}
+.list{display:grid;grid-template-columns:1fr;gap:10px;margin-top:16px}
+@media (min-width:720px){.list{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;border-left:4px solid var(--cat)}
+.card.hl{box-shadow:0 0 0 2px var(--accent)}
+.card.done{opacity:.55}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ko{font-weight:800;font-size:16px}
+.cat{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--cat);white-space:nowrap}
+.zh{display:flex;gap:8px;align-items:center;min-width:0}
+.zh span{font-size:14px;color:var(--muted);overflow-wrap:anywhere;min-width:0}
+.memo{margin:0;font-size:14px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:700}
+.tag.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+.acts{display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.btn{font:inherit;font-size:13px;border-radius:8px;padding:6px 11px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.btn.go{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:700}
+.btn.sm{padding:3px 8px;font-size:12px;flex:none}
+.visit{margin-left:auto;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+.notes{margin-top:28px;font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+.notes h2{font-family:var(--f-display);font-weight:400;font-size:20px;color:var(--ink);margin:0 0 8px}
+.notes ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.card{transition:box-shadow .2s,opacity .2s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>상하이 먹킷리스트</h1>
+    <p>고덕지도 즐겨찾기에 저장한 곳 모음. 카드의 <b>고덕에서 열기</b>를 누르면 고덕 앱이나 웹으로 열려요.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="bar">
+    <div class="chips" id="chips" role="group" aria-label="분류"></div>
+    <div class="row">
+      <input id="q" type="search" placeholder="이름·메뉴 검색 (예: 게살, 밀크티)" aria-label="검색">
+      <label class="toggle"><input type="checkbox" id="hideDone"> 가본 곳 숨기기</label>
+    </div>
+  </div>
+
+  <figure class="map" style="margin-inline:0;margin-bottom:0">
+    <svg id="map" viewBox="0 0 600 440" role="img" aria-label="상하이 시내 위치 개략도"></svg>
+    <figcaption>위치 개략도 (실제 지도 아님). 점을 누르면 해당 카드로 이동해요. 홍차오공항은 지도 밖(서쪽 15km)이에요.</figcaption>
+  </figure>
+
+  <div class="list" id="list"></div>
+
+  <section class="notes">
+    <h2>고덕에 없거나 등록하지 않은 곳</h2>
+    <ul>
+      <li>폐점·링크 사라짐: 全友超市(지엔빙), 小杨生煎 푸저우루점, 东发道茶冰厅, 山城烤鱼</li>
+      <li>고덕에서 못 찾음: 푸동미술관(浦东美术馆), TANYU 探鱼(홍이플라자 꼭대기층), Venchi 신천지점, 코너콘 젤라또(강아지 아이스크림, 난징동루)</li>
+      <li>체인이라 아무 지점이나: 헤이티(喜茶), %아라비카, 하이디라오(海底捞)</li>
+      <li>앱에서 폴더 정리: 我的 → 收藏夹 → 장소 길게 누르기 → 移动到(폴더) / 备注(메모)</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const CAT={sight:{ko:"관광",c:"--c-sight"},shop:{ko:"쇼핑",c:"--c-shop"},food:{ko:"맛집",c:"--c-food"},cafe:{ko:"카페·디저트",c:"--c-cafe"}};
+// [cat, 한국어, 中文(고덕 등록명), 메모, lat, lng, link(surl code or null), tags]
+const P=[
+["sight","와이탄","外滩","동방명주 건너편 유럽풍 건물 야경",31.23346,121.49216,"9T1OJbavdw8",[]],
+["sight","동방명주","东方明珠广播电视塔","상하이 대표 야경",31.23970,121.49972,"9Pq5vzqQ7Am",[]],
+["sight","예원","上海豫园","중국 느낌 가득한 정원, 밤 야경 추천",31.22771,121.49250,"9MArtt6YfjL",[]],
+["sight","우캉루","武康路","상하이의 성수. 가로수길, 카페, 소품샵",31.20886,121.44052,"9AHeIwU1r2FL",[]],
+["sight","우캉맨션","武康大楼","인증샷 스팟. 앞에서 폴라로이드 4천원쯤",31.20443,121.43828,"9IGQxoQ1leaJ",[]],
+["sight","신천지","上海新天地","상하이의 한남동. 레스토랑·브랜드 거리",31.21992,121.47495,"9HkUmI8E4D0",[]],
+["sight","대한민국임시정부","大韩民国临时政府旧址","신천지 바로 옆, 묶어서 가기 좋음",31.21735,121.47462,"9J12aRa14d5p",[]],
+["sight","티엔즈팡","上海田子坊","기념품(블랜버니·토끼사탕·칭즈핸드크림)",31.20820,121.46866,"9HLHWoU1wd9P",[]],
+["sight","홍차오공항","上海虹桥国际机场","김포 같은 곳. 라운지 라면+칭다오",31.19605,121.33978,"9BUNRckycF2",[]],
+["shop","IFC몰","上海ifc商场","비 오는 날 실내 코스, 푸드코트",31.23616,121.50233,"9I1DeGc10fsG",[]],
+["shop","브랜디멜빌","brandy melville(安福路店)","여리여리 감성 옷가게",31.21338,121.44066,"ag6UrO0QgwL",[]],
+["shop","Tagi 소품샵","Tagi.(乌鲁木齐中路店)","그립톡 유명한 소품샵",31.21218,121.44626,"9xp8JbqMcVX",[]],
+["food","레드립스 마라반","红唇串串香(宏伊国际广场店)","마라반. 블로거 상하이 1순위",31.23699,121.48458,"aBa0Fduw0Wt",["★강추"]],
+["food","헌지우이치엔 (제1백화점)","很久以前羊肉串(南京路第一百货店)","상하이 대표 양꼬치. 웨이팅 김, 위챗 줄서기",31.23574,121.47437,"aE4LUkEh9sf",["★강추","릴스 1위"]],
+["food","헌지우이치엔 (818광장)","很久以前羊肉串(南京西路818广场店)","같은 양꼬치 체인 난징시루 지점",31.2316,121.4626,null,["같은 체인"]],
+["food","점도덕","点都德(环宇荟店)","딤섬. 홍미창펀(빨간 창펀)·마라 튀김만두 필수",31.21174,121.47654,"akElVEs1u5xE",[]],
+["food","장씨네 게살국수","庄氏隆兴·非遗蟹点(上海首店)","한국인 사이 유명한 게살국수",31.23681,121.47746,"atArQq4N7zx",[]],
+["food","위싱지 게살국수","裕兴记·蟹黄面馆(人民广场店)","게살국수 (릴스 21끼 중)",31.2347,121.4720,null,[]],
+["food","지아지아탕바오","佳家汤包(黄河路店)","게살국수·탕바오, 양 많음",31.2368,121.4706,null,[]],
+["food","라이라이샤오롱","莱莱小笼","게살·고기 샤오롱바오",31.23612,121.47713,"a9PR4jmR1HF",[]],
+["food","그랜드마더","上海姥姥家常饭馆(福州路店)","동파육·마파두부",31.23554,121.48889,"arDwC7eR3cG",[]],
+["food","라오지스","老吉士饭馆(天平路店)","홍소육·마파두부 (본점)",31.2093,121.4398,null,[]],
+["food","장변성외 카오위","江边城外烤全鱼(上海世茂店)","통생선 마라구이",31.23447,121.47565,"aspA7z2h7II",[]],
+["food","페이다추","费大厨辣椒炒肉(正大广场店)","고기고추볶음, 쌀밥이 맛있다는 후기",31.23683,121.50017,"aytjkneLdIK",[]],
+["food","예상하이","夜上海","베이징덕 (블로거 미방문)",31.22064,121.47784,"aAOR1G0f4uz",[]],
+["food","좌정우원 훠궈","左庭右院鲜牛肉火锅(新世界城店)","소고기 훠궈. 백탕 없음, 맵찔이 주의",31.2350,121.4738,null,[]],
+["food","홍쿠이지아","红盔甲·小龙虾(人民广场店)","마늘 룽샤(민물가재)",31.2298,121.4795,null,[]],
+["food","위젠샤오미엔","遇见小面(人广来福士店)","쏸라펀·충칭 소면, 저렴",31.2318,121.4756,null,[]],
+["food","라오농탕 국수","沪西老弄堂面馆(广东路店)","조개돼지간국수, 현지인 맛집",31.23276,121.48211,"aod92Wc1lg1A",[]],
+["food","산동잡곡전병","山东杂粮煎饼(德仁里店)","지엔빙(중국식 전병) 길거리 간식",31.23626,121.47683,"9ZB6tV61A2cK",[]],
+["food","장수루 샤오카오","长寿楼(恒达大厦店)","그래쓰 꼬치집",31.24082,121.43882,"af9sLQ41h51M",["영업중지 표시"]],
+["cafe","아마수작","阿嬷手作(国金中心店)","쌀모찌 밀크티. 웨이팅 걸고 구경",31.23485,121.50348,"avnvJuUAgsZ",["★강추","릴스 2위"]],
+["cafe","폴럭스","POLUX","프렌치토스트 브런치 (신천지)",31.2215,121.4748,null,["릴스 3위"]],
+["cafe","블루보틀 장원점","Blue Bottle Coffee蓝瓶咖啡(张园店)","그린 자스민 놀라",31.2309,121.4601,null,[]],
+["cafe","패왕차희","CHAGEE霸王茶姬(上海打浦桥日月光二店)","유명 밀크티 체인",31.20758,121.46934,"apYbTFS1o6SU",[]],
+["cafe","홀리랜드","好利来(正大广场店)","오레오 수건케이크, 벽돌초콜렛",31.23720,121.49996,"auX64DCWgTZ",[]],
+["cafe","카이스링","凯司令(乌鲁木齐路店)","밤케이크, 흰색이 더 맛있음",31.21121,121.44643,"ayGxcQ81A4F6",[]],
+["cafe","릴리안 에그타르트","莉莲蛋挞(人民广场站店)","에그타르트",31.2352,121.4745,null,[]],
+["cafe","루나베리","LUNABERRi希腊酸奶碗(上海新天地广场店)","그릭요거트·양쯔깐루, 배달도 됨",31.2233,121.4745,null,[]],
+].map((p,i)=>({id:i,cat:p[0],ko:p[1],zh:p[2],memo:p[3],lat:p[4],lng:p[5],code:p[6],tags:p[7]}));
+
+const link=p=>p.code?`https://surl.amap.com/${p.code}`:`https://uri.amap.com/search?keyword=${encodeURIComponent(p.zh)}&city=310000`;
+let done={}; try{done=JSON.parse(localStorage.getItem("sh-done")||"{}")}catch(e){}
+const save=()=>{try{localStorage.setItem("sh-done",JSON.stringify(done))}catch(e){}};
+let cat="all"; try{cat=localStorage.getItem("sh-cat")||"all"}catch(e){}
+const $=s=>document.querySelector(s);
+
+// chips
+const chipDefs=[["all","전체",null],...Object.entries(CAT).map(([k,v])=>[k,v.ko,v.c])];
+$("#chips").innerHTML=chipDefs.map(([k,l,c])=>`<button class="chip" data-k="${k}" aria-pressed="${k===cat}">${c?`<span class="dot" style="background:var(${c})"></span>`:""}${l} <span style="opacity:.6">${k==="all"?P.length:P.filter(p=>p.cat===k).length}</span></button>`).join("");
+$("#chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;cat=b.dataset.k;try{localStorage.setItem("sh-cat",cat)}catch(e){}document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x.dataset.k===cat));render()});
+
+// map projection (city center only)
+const B={w:121.430,e:121.510,s:31.200,n:31.245}, W=600,H=440;
+const X=lng=>(lng-B.w)/(B.e-B.w)*W, Y=lat=>(B.n-lat)/(B.n-B.s)*H;
+const river=[[121.4885,31.2470],[121.4920,31.2410],[121.4935,31.2340],[121.4960,31.2270],[121.5010,31.2205],[121.5030,31.2120],[121.4990,31.2020]];
+const areas=[["인민광장",121.4735,31.2385],["와이탄",121.4855,31.2275],["루자쭈이",121.5000,31.2440],["신천지",121.4705,31.2155],["우캉루·안푸루",121.4430,31.2165],["징안",121.4520,31.2300]];
+function drawMap(){
+  const pts=P.filter(p=>p.lng>B.w&&p.lng<B.e&&p.lat>B.s&&p.lat<B.n);
+  $("#map").innerHTML=
+    `<rect width="${W}" height="${H}" fill="var(--surface)"/>`+
+    `<polyline points="${river.map(([a,b])=>X(a)+","+Y(b)).join(" ")}" fill="none" stroke="var(--river)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>`+
+    `<text x="${X(121.5005)}" y="${Y(31.2290)}" class="area" transform="rotate(62 ${X(121.5005)} ${Y(31.2290)})">황푸강</text>`+
+    areas.map(([t,a,b])=>`<text x="${X(a)}" y="${Y(b)}" class="area" text-anchor="middle">${t}</text>`).join("")+
+    pts.map(p=>`<g class="pin" data-id="${p.id}" tabindex="0" role="button" aria-label="${p.ko}"><circle cx="${X(p.lng).toFixed(1)}" cy="${Y(p.lat).toFixed(1)}" r="7" fill="var(${CAT[p.cat].c})"/></g>`).join("");
+}
+drawMap();
+$("#map").addEventListener("click",e=>{const g=e.target.closest(".pin");if(g)focusCard(+g.dataset.id)});
+$("#map").addEventListener("keydown",e=>{const g=e.target.closest(".pin");if(g&&(e.key==="Enter"||e.key===" ")){e.preventDefault();focusCard(+g.dataset.id)}});
+
+function focusCard(id){
+  const p=P[id]; if(cat!=="all"&&cat!==p.cat){cat="all";document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed",x.dataset.k==="all"))}
+  $("#q").value=""; $("#hideDone").checked=false; render();
+  const el=document.getElementById("c"+id); if(!el)return;
+  document.querySelectorAll(".card.hl").forEach(c=>c.classList.remove("hl")); el.classList.add("hl");
+  document.querySelectorAll(".pin").forEach(g=>g.classList.toggle("on",+g.dataset.id===id));
+  el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+}
+
+function render(){
+  const q=$("#q").value.trim().toLowerCase(), hide=$("#hideDone").checked;
+  const vis=P.filter(p=>(cat==="all"||p.cat===cat)&&(!hide||!done[p.id])&&(!q||(p.ko+p.zh+p.memo+p.tags.join(" ")).toLowerCase().includes(q)));
+  $("#list").innerHTML=vis.length?vis.map(p=>`
+  <article class="card${done[p.id]?" done":""}" id="c${p.id}" style="--cat:var(${CAT[p.cat].c})">
+    <div class="top"><div class="ko">${p.ko}</div><div class="cat">${CAT[p.cat].ko}</div></div>
+    <div class="zh"><span lang="zh">${p.zh}</span><button class="btn sm" data-copy="${p.id}" aria-label="중국어 이름 복사">복사</button></div>
+    <p class="memo">${p.memo}</p>
+    ${p.tags.length?`<div class="tags">${p.tags.map(t=>`<span class="tag${t.includes("중지")?" warn":""}">${t}</span>`).join("")}</div>`:""}
+    <div class="acts">
+      <a class="btn go" href="${link(p)}" target="_blank" rel="noopener">고덕에서 열기 ↗</a>
+      <label class="visit"><input type="checkbox" data-done="${p.id}" ${done[p.id]?"checked":""}> 가봤어요</label>
+    </div>
+  </article>`).join(""):`<p class="empty">조건에 맞는 곳이 없어요. 검색어를 지우거나 다른 분류를 눌러보세요.</p>`;
+  const ids=new Set(vis.map(p=>p.id));
+  document.querySelectorAll(".pin").forEach(g=>g.classList.toggle("dim",!ids.has(+g.dataset.id)));
+  const n=Object.values(done).filter(Boolean).length;
+  $("#stats").innerHTML=`<span>저장 <b>${P.length}</b>곳</span>`+Object.entries(CAT).map(([k,v])=>`<span>${v.ko} <b>${P.filter(p=>p.cat===k).length}</b></span>`).join("")+`<span>가본 곳 <b>${n}</b></span>`;
+}
+$("#q").addEventListener("input",render);
+$("#hideDone").addEventListener("change",render);
+$("#list").addEventListener("change",e=>{const id=e.target.dataset.done;if(id==null)return;done[id]=e.target.checked;save();render()});
+$("#list").addEventListener("click",e=>{
+  const b=e.target.closest("[data-copy]"); if(!b)return;
+  const t=P[+b.dataset.copy].zh;
+  const ok=()=>toast("복사했어요: "+t);
+  const fallback=()=>{const r=document.createRange();r.selectNodeContents(b.previousElementSibling);const s=getSelection();s.removeAllRanges();s.addRange(r);toast("이름을 선택했어요. 길게 눌러 복사하세요")};
+  try{navigator.clipboard.writeText(t).then(ok,fallback)}catch(err){fallback()}
+});
+let tt;function toast(m){let el=$(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el)}el.textContent=m;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,1800)}
+render();
+</script>
+
+</html>
